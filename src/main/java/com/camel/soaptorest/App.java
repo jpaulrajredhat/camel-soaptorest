@@ -26,7 +26,10 @@ import org.apache.camel.spi.Tracer;
 import org.apache.cxf.message.MessageContentsList;
 
 import org.apache.camel.converter.jaxb.JaxbDataFormat;
+
+import javax.ws.rs.core.MediaType;
 import javax.xml.bind.JAXBContext;
+//import org.apache.camel.model.dataformat.JsonLibrary;
 
 
 @SpringBootApplication()
@@ -57,8 +60,9 @@ public  class App {
         @Override
         public void configure() {
 
+            //JaxbDataFormat jaxb = new JaxbDataFormat("com.springws.springsoap.gen.GetCountryResponse");
             JaxbDataFormat jaxb = new JaxbDataFormat();
-             try {
+            try {
                 JAXBContext con = JAXBContext.newInstance(GetCountryResponse.class);
             jaxb.setContext(con);
             } catch (Exception e) {
@@ -78,10 +82,10 @@ public  class App {
 
         rest()
 			.get("/country/{country}")
-				.consumes("text/plain").produces("text/json")
+				.consumes("text/plain").produces("application/json")
 				.description("get country")
 				//.param().name("country").type(RestParamType.path).description("country code ").dataType("string").endParam()
-                .param().name("country").type(RestParamType.path).description("country code ").endParam()
+                .param().name("country").type(RestParamType.path).description("country code ").endParam().outType(com.springws.springsoap.gen.Country.class)
 			.to("direct:soapCountry");
 
             from("direct:soapCountry")
@@ -99,29 +103,29 @@ public  class App {
 		.setHeader(CxfConstants.OPERATION_NAMESPACE, constant("{{endpoint.namespace}}"))
 		.to("cxf:bean:cxfCountryService")
         .log("response country is: ${body[0].country.name}")
-		.process(new Processor() {
-			@Override
-			public void process(Exchange exchange) throws Exception {
-                System.out.println("camel-message" + exchange.getIn().getBody());
-				MessageContentsList response = (MessageContentsList) exchange.getIn().getBody();
-                
-                GetCountryResponse res = (GetCountryResponse) response.get(0);
-                Country country = new Country();
-                // if (res == null){
-                //     System.out.println("camel-messagenyyyyy" + null);
+       .setHeader(Exchange.CONTENT_TYPE, constant("application/json"))
+       .setBody(simple( "${body[0]}") )
+       .unmarshal(jaxb);
+       // .setHeader("","");
+       // .setBody(simple( "${body[0].country}") )
+      //.setBody(simple( "${body[0].country}") )
+       //.marshal().json( JsonLibrary.Jackson);
+      //.marshal().json(JsonLibrary.Gson);
+		// .process(new Processor() {
+		// 	@Override
+		// 	public void process(Exchange exchange) throws Exception {
+        //         System.out.println("camel-message" + exchange.getIn().getBody());
+		// 		//MessageContentsList response = (MessageContentsList) exchange.getIn().getBody();
+        //         GetCountryResponse res = exchange.getIn().getBody(GetCountryResponse.class);
+        //        // GetCountryResponse res = (GetCountryResponse) response.get(0);
+		// 		exchange.getIn().setBody(res);
+        //         exchange.getIn().setHeader(Exchange.CONTENT_TYPE, MediaType.APPLICATION_JSON);
 
-                //      res = new GetCountryResponse();
-                //      country.setName("India");
-                //      res.setCountry(country);
-
-                // }
-                //System.out.println(res.getCountry().getName());
-
-				exchange.getIn().setBody(res);
-			}
-		})
-        //.unmarshal(jaxb)
-		.to("mock:output");
+		// 	}
+		// });
+        //.unmarshal(jaxb);
+       // .setBody(simple( "${body[0].country}") )
+		//.to("mock:output");
 
         }
     }
